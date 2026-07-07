@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>로또 번호 추첨기</title>
+<style>
+  :root {
+    /* -- BMW M design tokens -- */
+    --color-canvas: #000000;
+    --color-surface-card: #1a1a1a;
+    --color-surface-elevated: #262626;
+    --color-surface-soft: #0d0d0d;
+    --color-hairline: #3c3c3c;
+    --color-hairline-strong: #262626;
+    --color-on-dark: #ffffff;
+    --color-body: #bbbbbb;
+    --color-body-strong: #e6e6e6;
+    --color-muted: #7e7e7e;
+    --color-m-blue-light: #0066b1;
+    --color-m-blue-dark: #1c69d4;
+    --color-m-red: #e22718;
+
+    --space-xxs: 4px;
+    --space-xs: 8px;
+    --space-sm: 12px;
+    --space-md: 16px;
+    --space-lg: 24px;
+    --space-xl: 40px;
+    --space-xxl: 64px;
+
+    --radius-none: 0px;
+    --radius-full: 9999px;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    background: var(--color-canvas);
+    color: var(--color-on-dark);
+    font-family: "Inter", "Pretendard", "Malgun Gothic", -apple-system, sans-serif;
+    padding: var(--space-xxl) var(--space-lg) var(--space-xl);
+  }
+
+  /* -- Hero band -- */
+  .hero {
+    width: 100%;
+    max-width: 640px;
+    text-align: left;
+    margin-bottom: var(--space-xl);
+  }
+
+  .eyebrow {
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--color-body);
+    margin: 0 0 var(--space-sm);
+  }
+
+  h1 {
+    font-size: 40px;
+    font-weight: 700;
+    line-height: 1.1;
+    letter-spacing: 0;
+    margin: 0 0 var(--space-md);
+    color: var(--color-on-dark);
+  }
+
+  .m-stripe {
+    height: 4px;
+    width: 96px;
+    margin-bottom: var(--space-md);
+    background: linear-gradient(
+      90deg,
+      var(--color-m-blue-light) 0%,
+      var(--color-m-blue-light) 33%,
+      var(--color-m-blue-dark) 33%,
+      var(--color-m-blue-dark) 66%,
+      var(--color-m-red) 66%,
+      var(--color-m-red) 100%
+    );
+  }
+
+  .hero p {
+    font-size: 16px;
+    font-weight: 300;
+    line-height: 1.5;
+    color: var(--color-body);
+    margin: 0;
+  }
+
+  /* -- Panel -- */
+  .panel {
+    width: 100%;
+    max-width: 640px;
+    background: var(--color-surface-card);
+    border-radius: var(--radius-none);
+    padding: var(--space-lg);
+  }
+
+  .controls {
+    display: flex;
+    align-items: flex-end;
+    gap: var(--space-md);
+    flex-wrap: wrap;
+    padding-bottom: var(--space-lg);
+    border-bottom: 1px solid var(--color-hairline);
+    margin-bottom: var(--space-lg);
+  }
+
+  .field {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-xs);
+  }
+
+  .field-label {
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--color-muted);
+  }
+
+  select {
+    height: 48px;
+    padding: 0 var(--space-md);
+    border-radius: var(--radius-none);
+    border: 1px solid var(--color-hairline);
+    background: var(--color-surface-soft);
+    color: var(--color-on-dark);
+    font-size: 16px;
+    font-weight: 300;
+    font-family: inherit;
+    min-width: 140px;
+  }
+  select:focus { outline: none; border-color: var(--color-on-dark); }
+
+  button.btn-primary {
+    height: 48px;
+    padding: 0 var(--space-xl);
+    border-radius: var(--radius-none);
+    border: 1px solid var(--color-on-dark);
+    background: transparent;
+    color: var(--color-on-dark);
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease;
+  }
+  button.btn-primary:hover { background: var(--color-on-dark); color: var(--color-canvas); }
+  button.btn-primary:disabled { opacity: 0.4; cursor: not-allowed; background: transparent; color: var(--color-on-dark); }
+
+  /* -- Result rows (spec-cell style) -- */
+  #results {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-sm);
+  }
+
+  .result-set {
+    display: flex;
+    align-items: center;
+    gap: var(--space-md);
+    background: var(--color-surface-soft);
+    padding: var(--space-md) var(--space-lg);
+    border-radius: var(--radius-none);
+    flex-wrap: wrap;
+  }
+
+  .set-label {
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--color-muted);
+    width: 64px;
+    flex-shrink: 0;
+  }
+
+  .balls {
+    display: flex;
+    gap: var(--space-sm);
+    flex-wrap: wrap;
+  }
+
+  /* Balls stay circular -- the system's one deliberate exception to
+     radius-none, same logic as circular icon buttons. Colors are the
+     official Korean Lotto number-range colors, kept for legibility. */
+  .ball {
+    width: 40px;
+    height: 40px;
+    border-radius: var(--radius-full);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 15px;
+    color: #111;
+    border: 1px solid rgba(255,255,255,0.15);
+    opacity: 0;
+    transform: scale(0.5);
+    animation: pop 0.35s ease forwards;
+  }
+  @keyframes pop { to { opacity: 1; transform: scale(1); } }
+
+  .c1 { background: #fbc400; }
+  .c2 { background: #69c8f2; }
+  .c3 { background: #ff7272; }
+  .c4 { background: #aaaaaa; }
+  .c5 { background: #b0d840; }
+
+  /* -- History section -- */
+  .history {
+    width: 100%;
+    max-width: 640px;
+    margin-top: var(--space-xxl);
+  }
+
+  .history-panel {
+    background: var(--color-surface-card);
+    padding: var(--space-lg);
+    max-height: 480px;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-hairline) transparent;
+  }
+
+  .history-row {
+    display: flex;
+    align-items: center;
+    gap: var(--space-md);
+    padding: var(--space-md) 0;
+    border-bottom: 1px solid var(--color-hairline);
+    flex-wrap: wrap;
+  }
+  .history-row:last-child { border-bottom: none; }
+
+  .history-meta {
+    width: 92px;
+    flex-shrink: 0;
+  }
+
+  .history-round {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--color-on-dark);
+  }
+
+  .history-date {
+    font-size: 12px;
+    font-weight: 400;
+    letter-spacing: 0.5px;
+    color: var(--color-muted);
+  }
+
+  .history-balls {
+    display: flex;
+    align-items: center;
+    gap: var(--space-xs);
+    flex-wrap: wrap;
+  }
+
+  .mini-ball {
+    width: 28px;
+    height: 28px;
+    border-radius: var(--radius-full);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 12px;
+    color: #111;
+    border: 1px solid rgba(255,255,255,0.15);
+    flex-shrink: 0;
+  }
+
+  .history-sep {
+    color: var(--color-muted);
+    font-size: 14px;
+    font-weight: 300;
+  }
+
+  .mini-ball.bonus {
+    background: var(--color-surface-soft);
+    color: var(--color-on-dark);
+    border: 1px solid var(--color-body);
+  }
+
+  .footer-note {
+    width: 100%;
+    max-width: 640px;
+    text-align: center;
+    margin-top: var(--space-xl);
+    font-size: 12px;
+    font-weight: 400;
+    letter-spacing: 0.5px;
+    color: var(--color-muted);
+  }
+
+  .footer-note a { color: var(--color-body); }
+
+  @media (max-width: 480px) {
+    h1 { font-size: 32px; }
+    .controls { align-items: stretch; }
+    button.btn-primary { width: 100%; }
+    select { width: 100%; }
+  }
+</style>
+</head>
+<body>
+
+  <div class="hero">
+    <p class="eyebrow">Lotto 6/45</p>
+    <h1>로또 번호 추첨기</h1>
+    <div class="m-stripe"></div>
+    <p>1부터 45까지, 중복 없이 뽑은 6개의 숫자.</p>
+  </div>
+
+  <div class="panel">
+    <div class="controls">
+      <div class="field">
+        <label class="field-label" for="count">게임 수</label>
+        <select id="count">
+          <option value="1">1게임</option>
+          <option value="2">2게임</option>
+          <option value="3">3게임</option>
+          <option value="4">4게임</option>
+          <option value="5">5게임</option>
+        </select>
+      </div>
+      <button id="drawBtn" class="btn-primary">번호 추첨</button>
+    </div>
+    <div id="results"></div>
+  </div>
+
+  <div class="history">
+    <p class="eyebrow">History</p>
+    <h1 style="font-size:32px;">역대 당첨번호</h1>
+    <div class="m-stripe"></div>
+    <div class="history-panel">
+      <div id="historyList"></div>
+    </div>
+  </div>
+
+  <p class="footer-note">숫자 색상은 국내 로또 공식 번호대(1–10 / 11–20 / 21–30 / 31–40 / 41–45) 색상을 따릅니다.<br>역대 당첨번호는 1231회(2026.07.04)부터 1210회(2026.02.07)까지이며, 정확한 당첨 결과는 <a href="https://www.dhlottery.co.kr" target="_blank" rel="noopener">동행복권 공식 홈페이지</a>에서 최종 확인하시기 바랍니다.</p>
+
+<script>
+  const btn = document.getElementById('drawBtn');
+  const resultsEl = document.getElementById('results');
+  const countSel = document.getElementById('count');
+
+  function colorClass(n) {
+    if (n <= 10) return 'c1';
+    if (n <= 20) return 'c2';
+    if (n <= 30) return 'c3';
+    if (n <= 40) return 'c4';
+    return 'c5';
+  }
+
+  function drawOneSet() {
+    const pool = Array.from({ length: 45 }, (_, i) => i + 1);
+    const picked = [];
+    for (let i = 0; i < 6; i++) {
+      const idx = Math.floor(Math.random() * pool.length);
+      picked.push(pool.splice(idx, 1)[0]);
+    }
+    return picked.sort((a, b) => a - b);
+  }
+
+  function render(sets) {
+    resultsEl.innerHTML = '';
+    sets.forEach((set, setIdx) => {
+      const row = document.createElement('div');
+      row.className = 'result-set';
+
+      const label = document.createElement('span');
+      label.className = 'set-label';
+      label.textContent = `게임 ${setIdx + 1}`;
+      row.appendChild(label);
+
+      const ballsWrap = document.createElement('div');
+      ballsWrap.className = 'balls';
+      set.forEach((n, i) => {
+        const ball = document.createElement('div');
+        ball.className = `ball ${colorClass(n)}`;
+        ball.textContent = n;
+        ball.style.animationDelay = `${(setIdx * 6 + i) * 0.06}s`;
+        ballsWrap.appendChild(ball);
+      });
+      row.appendChild(ballsWrap);
+      resultsEl.appendChild(row);
+    });
+  }
+
+  function draw() {
+    btn.disabled = true;
+    const count = parseInt(countSel.value, 10);
+    const sets = Array.from({ length: count }, drawOneSet);
+    render(sets);
+    setTimeout(() => { btn.disabled = false; }, 300);
+  }
+
+  btn.addEventListener('click', draw);
+  draw();
+
+  // 역대 당첨번호 (1210회~1231회). 동행복권 공식 API가 자동조회를 차단해
+  // 공개 미러 두 곳(lotto.ysw.kr, lottis.kr)을 교차 검증해 수집한 값입니다.
+  const historyData = [
+    { round: 1231, date: '2026.07.04', numbers: [4, 13, 14, 18, 31, 38], bonus: 15 },
+    { round: 1230, date: '2026.06.27', numbers: [3, 8, 9, 22, 28, 42], bonus: 45 },
+    { round: 1229, date: '2026.06.20', numbers: [12, 13, 29, 34, 37, 42], bonus: 16 },
+    { round: 1228, date: '2026.06.13', numbers: [24, 29, 30, 31, 35, 44], bonus: 1 },
+    { round: 1227, date: '2026.06.06', numbers: [1, 14, 16, 34, 41, 44], bonus: 13 },
+    { round: 1226, date: '2026.05.30', numbers: [4, 6, 13, 17, 26, 28], bonus: 41 },
+    { round: 1225, date: '2026.05.23', numbers: [8, 9, 19, 25, 41, 42], bonus: 33 },
+    { round: 1224, date: '2026.05.16', numbers: [9, 18, 21, 27, 44, 45], bonus: 28 },
+    { round: 1223, date: '2026.05.09', numbers: [16, 18, 20, 32, 33, 39], bonus: 26 },
+    { round: 1222, date: '2026.05.02', numbers: [4, 11, 17, 22, 32, 41], bonus: 34 },
+    { round: 1221, date: '2026.04.25', numbers: [6, 13, 18, 28, 30, 36], bonus: 9 },
+    { round: 1220, date: '2026.04.18', numbers: [2, 22, 25, 28, 34, 43], bonus: 16 },
+    { round: 1219, date: '2026.04.11', numbers: [1, 2, 15, 28, 39, 45], bonus: 31 },
+    { round: 1218, date: '2026.04.04', numbers: [3, 28, 31, 32, 42, 45], bonus: 25 },
+    { round: 1217, date: '2026.03.28', numbers: [8, 10, 15, 20, 29, 31], bonus: 41 },
+    { round: 1216, date: '2026.03.21', numbers: [3, 10, 14, 15, 23, 24], bonus: 25 },
+    { round: 1215, date: '2026.03.14', numbers: [13, 15, 19, 21, 44, 45], bonus: 39 },
+    { round: 1214, date: '2026.03.07', numbers: [10, 15, 19, 27, 30, 33], bonus: 14 },
+    { round: 1213, date: '2026.02.28', numbers: [5, 11, 25, 27, 36, 38], bonus: 2 },
+    { round: 1212, date: '2026.02.21', numbers: [5, 8, 25, 31, 41, 44], bonus: 45 },
+    { round: 1211, date: '2026.02.14', numbers: [23, 26, 27, 35, 38, 40], bonus: 10 },
+    { round: 1210, date: '2026.02.07', numbers: [1, 7, 9, 17, 27, 38], bonus: 31 },
+  ];
+
+  function renderHistory() {
+    const listEl = document.getElementById('historyList');
+    historyData.forEach(entry => {
+      const row = document.createElement('div');
+      row.className = 'history-row';
+
+      const meta = document.createElement('div');
+      meta.className = 'history-meta';
+      meta.innerHTML = `<div class="history-round">${entry.round}회</div><div class="history-date">${entry.date}</div>`;
+      row.appendChild(meta);
+
+      const ballsWrap = document.createElement('div');
+      ballsWrap.className = 'history-balls';
+      entry.numbers.forEach(n => {
+        const ball = document.createElement('div');
+        ball.className = `mini-ball ${colorClass(n)}`;
+        ball.textContent = n;
+        ballsWrap.appendChild(ball);
+      });
+
+      const sep = document.createElement('span');
+      sep.className = 'history-sep';
+      sep.textContent = '+';
+      ballsWrap.appendChild(sep);
+
+      const bonusBall = document.createElement('div');
+      bonusBall.className = `mini-ball bonus`;
+      bonusBall.textContent = entry.bonus;
+      ballsWrap.appendChild(bonusBall);
+
+      row.appendChild(ballsWrap);
+      listEl.appendChild(row);
+    });
+  }
+
+  renderHistory();
+</script>
+</body>
+</html>
