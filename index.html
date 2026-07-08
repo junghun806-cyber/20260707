@@ -372,7 +372,24 @@
     <p class="footnote">숫자 색상은 국내 로또 공식 번호대(1–10 / 11–20 / 21–30 / 31–40 / 41–45) 색상을 따릅니다.<br>역대 당첨번호는 1231회(2026.07.04)부터 1210회(2026.02.07)까지이며, 정확한 당첨 결과는 <a href="https://www.dhlottery.co.kr" target="_blank" rel="noopener">동행복권 공식 홈페이지</a>에서 최종 확인하시기 바랍니다.</p>
   </main>
 
-<script>
+<script type="module">
+  import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+
+  const SUPABASE_URL = 'https://ufwrgpdyeofjudjavemq.supabase.co';
+  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVmd3JncGR5ZW9manVkamF2ZW1xIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODMzOTUwOTAsImV4cCI6MjA5ODk3MTA5MH0.z9afK0f-lvBbHdoPBSKF5-Kf-38dzEySLYWdOzc_XXE';
+  const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  async function saveDraw(sets) {
+    const batchId = crypto.randomUUID();
+    const rows = sets.map((numbers, i) => ({
+      batch_id: batchId,
+      game_index: i + 1,
+      numbers,
+    }));
+    const { error } = await supabase.from('lotto_draws').insert(rows);
+    if (error) console.error('Supabase insert failed:', error.message);
+  }
+
   const btn = document.getElementById('drawBtn');
   const resultsEl = document.getElementById('results');
   const countSel = document.getElementById('count');
@@ -425,6 +442,7 @@
     const count = parseInt(countSel.value, 10);
     const sets = Array.from({ length: count }, drawOneSet);
     render(sets);
+    saveDraw(sets);
     setTimeout(() => { btn.disabled = false; }, 300);
   }
 
