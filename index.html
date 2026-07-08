@@ -452,6 +452,9 @@
     const sets = Array.from({ length: count }, drawOneSet);
     render(sets);
     saveDraw(sets);
+    if (typeof gtag === 'function') {
+      gtag('event', 'draw_click', { game_count: count });
+    }
     setTimeout(() => { btn.disabled = false; }, 300);
   }
 
